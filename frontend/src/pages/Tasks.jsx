@@ -31,7 +31,7 @@ const fetchTasks = async () => {
     const token = localStorage.getItem("token");
 
     const response = await axios.get(
-      "http://localhost:5000/tasks",
+      "https://zenith-prep.onrender.com/tasks",
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -59,7 +59,7 @@ const addTask = async (newTask) => {
     console.log("Token:", token);
 
     const response = await axios.post(
-      "http://localhost:5000/tasks",
+      "https://zenith-prep.onrender.com/tasks",
       newTask,
       {
         headers: {

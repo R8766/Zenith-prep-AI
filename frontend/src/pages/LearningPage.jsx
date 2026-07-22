@@ -42,7 +42,7 @@ function LearningPage() {
       const token = localStorage.getItem("token");
 
       await axios.post(
-        "http://localhost:5000/api/progress/complete",
+        "https://zenith-prep.onrender.com/api/progress/complete",
         {
           category,
           topic: currentTopic.topic,
