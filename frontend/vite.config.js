@@ -3,8 +3,9 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-  ],
+  plugins: [react(), tailwindcss()],
+
+  preview: {
+    allowedHosts: ["zenith-prep-ai-1.onrender.com"],
+  },
 });

@@ -21,7 +21,7 @@ const progressSchema = new mongoose.Schema(
 
     weeklyGoal: {
       type: Number,
-      default: 0,
+      default: 5,
     },
 
     weeklyCompleted: {
@@ -36,6 +36,7 @@ const progressSchema = new mongoose.Schema(
 
     lastCompletedDate: {
       type: Date,
+      default: null,
     },
   },
   {

@@ -77,6 +77,7 @@ exports.updateTask = async (req, res) => {
     }
 
     const wasCompleted = oldTask.completed;
+    const taskXP = xp || oldTask.xp || 20;
 
     oldTask.title = title;
     oldTask.category = category;
@@ -86,13 +87,13 @@ exports.updateTask = async (req, res) => {
 
     await oldTask.save();
 
-    // Only update progress when task is completed for the first time
+    // Incomplete → Completed
     if (!wasCompleted && completed) {
       await Progress.findOneAndUpdate(
         { user: req.user.id },
         {
           $inc: {
-            totalXP: xp || 20,
+            totalXP: taskXP,
             completedTasks: 1,
             weeklyCompleted: 1,
           },
@@ -103,6 +104,20 @@ exports.updateTask = async (req, res) => {
         {
           upsert: true,
           new: true,
+        }
+      );
+    }
+
+    // Completed → Incomplete
+    if (wasCompleted && !completed) {
+      await Progress.findOneAndUpdate(
+        { user: req.user.id },
+        {
+          $inc: {
+            totalXP: -taskXP,
+            completedTasks: -1,
+            weeklyCompleted: -1,
+          },
         }
       );
     }
@@ -119,7 +134,6 @@ exports.updateTask = async (req, res) => {
     });
   }
 };
-
 
 // DELETE TASK
 exports.deleteTask = async (req, res) => {
