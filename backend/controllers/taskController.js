@@ -1,4 +1,5 @@
 const Task = require("../models/Task");
+const Progress = require("../models/Progress");
 
 // CREATE TASK
 exports.createTask = async (req, res) => {
@@ -53,6 +54,7 @@ exports.getTasks = async (req, res) => {
 
 
 // UPDATE TASK
+// UPDATE TASK
 exports.updateTask = async (req, res) => {
   try {
     const {
@@ -63,32 +65,51 @@ exports.updateTask = async (req, res) => {
       completed,
     } = req.body;
 
-    const task = await Task.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        createdBy: req.user.id,
-      },
-      {
-        title,
-        category,
-        difficulty,
-        xp,
-        completed,
-      },
-      {
-        new: true,
-      }
-    );
+    const oldTask = await Task.findOne({
+      _id: req.params.id,
+      createdBy: req.user.id,
+    });
 
-    if (!task) {
+    if (!oldTask) {
       return res.status(404).json({
         message: "Task not found",
       });
     }
 
+    const wasCompleted = oldTask.completed;
+
+    oldTask.title = title;
+    oldTask.category = category;
+    oldTask.difficulty = difficulty;
+    oldTask.xp = xp;
+    oldTask.completed = completed;
+
+    await oldTask.save();
+
+    // Only update progress when task is completed for the first time
+    if (!wasCompleted && completed) {
+      await Progress.findOneAndUpdate(
+        { user: req.user.id },
+        {
+          $inc: {
+            totalXP: xp || 20,
+            completedTasks: 1,
+            weeklyCompleted: 1,
+          },
+          $set: {
+            lastCompletedDate: new Date(),
+          },
+        },
+        {
+          upsert: true,
+          new: true,
+        }
+      );
+    }
+
     res.json({
       message: "Task updated successfully",
-      task,
+      task: oldTask,
     });
   } catch (error) {
     console.log(error);
