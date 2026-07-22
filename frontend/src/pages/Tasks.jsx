@@ -22,119 +22,199 @@ function Tasks() {
   const [editModal, setEditModal] = useState(false);
 
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("All Categories");
+  const [categoryFilter, setCategoryFilter] =
+    useState("All Categories");
+
   const [difficultyFilter, setDifficultyFilter] =
     useState("All Difficulty");
 
-const fetchTasks = async () => {
-  try {
-    const token = localStorage.getItem("token");
+  const API_URL = "https://zenith-prep.onrender.com";
 
-    const response = await axios.get(
-      "https://zenith-prep.onrender.com/tasks",
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+  // =========================
+  // GET TASKS
+  // =========================
 
-    setTasks(response.data);
+  const fetchTasks = async () => {
+    try {
+      const token = localStorage.getItem("token");
 
-  } catch (error) {
-    console.log("Error fetching tasks:", error);
-  }
-};
-
-useEffect(() => {
-  fetchTasks();
-}, []);
-
-
-const addTask = async (newTask) => {
-  try {
-    const token = localStorage.getItem("token");
-
-    console.log("Sending task:", newTask);
-    console.log("Token:", token);
-
-    const response = await axios.post(
-      "https://zenith-prep.onrender.com/tasks",
-      newTask,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    console.log("Task created:", response.data);
-
-    setTasks((prev) => [
-      response.data.task,
-      ...prev,
-    ]);
-
-    setShowModal(false);
-
-  } catch (error) {
-    console.log(
-      "ERROR:",
-      error.response?.data || error.message
-    );
-  }
-};
-
-  const deleteTask = (id) => {
-    setTasks((prev) =>
-      prev.filter((task) => task.id !== id)
-    );
-  };
-
-  const toggleComplete = (id) => {
-  setTasks((prev) =>
-    prev.map((task) => {
-      if (task.id === id) {
-        const updatedTask = {
-          ...task,
-          completed: !task.completed,
-        };
-
-        // Store today's activity when task is completed
-        if (!task.completed) {
-          const today = new Date().toISOString().split("T")[0];
-
-          const existingActivity =
-            JSON.parse(localStorage.getItem("activity")) || [];
-
-          if (!existingActivity.includes(today)) {
-            existingActivity.push(today);
-
-            localStorage.setItem(
-              "activity",
-              JSON.stringify(existingActivity)
-            );
-          }
+      const response = await axios.get(
+        `${API_URL}/tasks`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
+      );
 
-        return updatedTask;
-      }
+      setTasks(response.data);
 
-      return task;
-    })
-  );
-};
-
-  const updateTask = (updatedTask) => {
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === updatedTask.id
-          ? updatedTask
-          : task
-      )
-    );
+    } catch (error) {
+      console.log(
+        "Error fetching tasks:",
+        error.response?.data || error.message
+      );
+    }
   };
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  // =========================
+  // CREATE TASK
+  // =========================
+
+  const addTask = async (newTask) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await axios.post(
+        `${API_URL}/tasks`,
+        newTask,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      setTasks((prev) => [
+        response.data.task,
+        ...prev,
+      ]);
+
+      setShowModal(false);
+
+    } catch (error) {
+      console.log(
+        "Error creating task:",
+        error.response?.data || error.message
+      );
+    }
+  };
+
+  // =========================
+  // DELETE TASK
+  // =========================
+
+  const deleteTask = async (id) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      await axios.delete(
+        `${API_URL}/tasks/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      // Remove from frontend immediately
+      setTasks((prev) =>
+        prev.filter((task) => task._id !== id)
+      );
+
+    } catch (error) {
+      console.log(
+        "Error deleting task:",
+        error.response?.data || error.message
+      );
+    }
+  };
+
+  // =========================
+  // COMPLETE / UNCOMPLETE TASK
+  // =========================
+
+  const toggleComplete = async (id) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const currentTask = tasks.find(
+        (task) => task._id === id
+      );
+
+      if (!currentTask) return;
+
+      const updatedTask = {
+        title: currentTask.title,
+        category: currentTask.category,
+        difficulty: currentTask.difficulty,
+        xp: currentTask.xp,
+        completed: !currentTask.completed,
+      };
+
+      const response = await axios.put(
+        `${API_URL}/tasks/${id}`,
+        updatedTask,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      setTasks((prev) =>
+        prev.map((task) =>
+          task._id === id
+            ? response.data.task
+            : task
+        )
+      );
+
+    } catch (error) {
+      console.log(
+        "Error updating task:",
+        error.response?.data || error.message
+      );
+    }
+  };
+
+  // =========================
+  // EDIT TASK
+  // =========================
+
+  const updateTask = async (updatedTask) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await axios.put(
+        `${API_URL}/tasks/${updatedTask._id}`,
+        updatedTask,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      setTasks((prev) =>
+        prev.map((task) =>
+          task._id === updatedTask._id
+            ? response.data.task
+            : task
+        )
+      );
+
+      setEditModal(false);
+      setEditingTask(null);
+
+    } catch (error) {
+      console.log(
+        "Error updating task:",
+        error.response?.data || error.message
+      );
+    }
+  };
+
+  // =========================
+  // FILTERING
+  // =========================
 
   const completed = tasks.filter(
     (task) => task.completed
@@ -146,6 +226,7 @@ const addTask = async (newTask) => {
       : 0;
 
   const filteredTasks = tasks.filter((task) => {
+
     const matchesSearch = task.title
       .toLowerCase()
       .includes(search.toLowerCase());
@@ -168,7 +249,7 @@ const addTask = async (newTask) => {
   return (
     <Layout>
 
-      {/* Header */}
+      {/* HEADER */}
 
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
 
@@ -195,11 +276,11 @@ const addTask = async (newTask) => {
       </div>
 
 
-      {/* Stats */}
+      {/* STATS */}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
 
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 transition-colors">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow p-5">
 
           <p className="text-gray-500 dark:text-gray-400">
             Total Tasks
@@ -212,7 +293,7 @@ const addTask = async (newTask) => {
         </div>
 
 
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 transition-colors">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow p-5">
 
           <p className="text-gray-500 dark:text-gray-400">
             Completed
@@ -225,7 +306,7 @@ const addTask = async (newTask) => {
         </div>
 
 
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 transition-colors">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow p-5">
 
           <p className="text-gray-500 dark:text-gray-400">
             Pending
@@ -238,7 +319,7 @@ const addTask = async (newTask) => {
         </div>
 
 
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 transition-colors">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow p-5">
 
           <p className="text-gray-500 dark:text-gray-400">
             Progress
@@ -253,9 +334,9 @@ const addTask = async (newTask) => {
       </div>
 
 
-      {/* Search & Filters */}
+      {/* SEARCH AND FILTERS */}
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 mb-8 transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 mb-8">
 
         <div className="grid lg:grid-cols-4 gap-4">
 
@@ -354,14 +435,14 @@ const addTask = async (newTask) => {
       </div>
 
 
-      {/* Task List */}
+      {/* TASK LIST */}
 
       <div className="space-y-5">
 
         {filteredTasks.map((task) => (
 
           <div
-            key={task.id}
+            key={task._id}
             className="
               bg-white
               dark:bg-slate-900
@@ -374,17 +455,16 @@ const addTask = async (newTask) => {
               lg:justify-between
               lg:items-center
               gap-5
-              transition-colors
             "
           >
 
-            {/* Left Side */}
+            {/* LEFT SIDE */}
 
             <div className="flex items-start gap-4">
 
               <button
                 onClick={() =>
-                  toggleComplete(task.id)
+                  toggleComplete(task._id)
                 }
               >
 
@@ -435,7 +515,7 @@ const addTask = async (newTask) => {
             </div>
 
 
-            {/* Right Side */}
+            {/* RIGHT SIDE */}
 
             <div className="flex gap-3">
 
@@ -452,7 +532,7 @@ const addTask = async (newTask) => {
 
               <button
                 onClick={() =>
-                  deleteTask(task.id)
+                  deleteTask(task._id)
                 }
                 className="bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-300 p-3 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/60 transition"
               >
@@ -466,7 +546,7 @@ const addTask = async (newTask) => {
         ))}
 
 
-        {/* Empty State */}
+        {/* EMPTY STATE */}
 
         {filteredTasks.length === 0 && (
 
@@ -487,7 +567,7 @@ const addTask = async (newTask) => {
       </div>
 
 
-      {/* Progress */}
+      {/* PROGRESS */}
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow p-6 mt-8">
 
@@ -523,7 +603,7 @@ const addTask = async (newTask) => {
       </div>
 
 
-      {/* Modals */}
+      {/* MODALS */}
 
       <AddTaskModal
         isOpen={showModal}

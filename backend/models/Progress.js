@@ -34,6 +34,11 @@ const progressSchema = new mongoose.Schema(
       default: 0,
     },
 
+    coins: {
+      type: Number,
+      default: 0,
+    },
+
     lastCompletedDate: {
       type: Date,
       default: null,

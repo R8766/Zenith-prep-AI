@@ -2,18 +2,13 @@ const express = require("express");
 
 const router = express.Router();
 
-const auth = require("../middleware/auth");
+const authMiddleware = require("../middleware/auth");
+const progressController = require("../controllers/progressController");
 
-const {
-  markComplete,
-} = require("../controllers/progressController");
-
-const {
-  getProgress,
-} = require("../controllers/getProgressController");
-
-router.post("/complete", auth, markComplete);
-
-router.get("/", auth, getProgress);
+router.get(
+  "/",
+  authMiddleware,
+  progressController.getProgress
+);
 
 module.exports = router;

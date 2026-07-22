@@ -1,9 +1,38 @@
-import user from "../data/user";
+import { useEffect, useState } from "react";
 import { FaFire, FaCoins, FaStar } from "react-icons/fa";
+import api from "../services/api";
 
 function XPBar() {
-  const xpNeeded = user.level * 100;
-  const progress = Math.min((user.xp / xpNeeded) * 100, 100);
+  const [progressData, setProgressData] = useState(null);
+
+  useEffect(() => {
+    const fetchProgress = async () => {
+      try {
+        const response = await api.get("/api/progress");
+        setProgressData(response.data);
+      } catch (error) {
+        console.log("Failed to fetch progress:", error);
+      }
+    };
+
+    fetchProgress();
+  }, []);
+
+  const totalXP = progressData?.totalXP || 0;
+
+  // Every 100 XP = 1 level
+  const level = Math.floor(totalXP / 100) + 1;
+
+  const xpInCurrentLevel = totalXP % 100;
+  const xpNeeded = 100;
+
+  const progress = Math.min(
+    (xpInCurrentLevel / xpNeeded) * 100,
+    100
+  );
+
+  const streak = progressData?.currentStreak || 0;
+  const coins = progressData?.coins || 0;
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-md dark:shadow-black/30 border border-gray-200 dark:border-slate-700 p-6 mt-6 hover:shadow-xl transition-all duration-300">
@@ -15,7 +44,7 @@ function XPBar() {
         <div>
           <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-800 dark:text-white">
             <FaStar className="text-yellow-500" />
-            Level {user.level}
+            Level {level}
           </h2>
 
           <p className="text-gray-500 dark:text-gray-400 mt-1">
@@ -27,7 +56,6 @@ function XPBar() {
         <div className="flex gap-6">
 
           <div className="flex items-center gap-2">
-
             <FaFire className="text-orange-500 text-xl" />
 
             <div>
@@ -36,14 +64,12 @@ function XPBar() {
               </p>
 
               <p className="font-bold text-gray-900 dark:text-white">
-                {user.streak || 15} Days
+                {streak} Days
               </p>
             </div>
-
           </div>
 
           <div className="flex items-center gap-2">
-
             <FaCoins className="text-yellow-500 text-xl" />
 
             <div>
@@ -52,33 +78,28 @@ function XPBar() {
               </p>
 
               <p className="font-bold text-gray-900 dark:text-white">
-                {user.coins}
+                {coins}
               </p>
             </div>
-
           </div>
 
         </div>
-
       </div>
 
       {/* XP */}
       <div className="mt-8">
 
         <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mb-2">
-
           <span>Experience</span>
 
           <span>
-            {user.xp} / {xpNeeded} XP
+            {xpInCurrentLevel} / {xpNeeded} XP
           </span>
-
         </div>
 
         {/* Progress Background */}
         <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
 
-          {/* Progress */}
           <div
             className="h-3 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-1000"
             style={{
@@ -94,7 +115,7 @@ function XPBar() {
       <div className="flex justify-between items-center mt-6 text-sm">
 
         <span className="text-gray-500 dark:text-gray-400">
-          {xpNeeded - user.xp} XP to reach Level {user.level + 1}
+          {100 - xpInCurrentLevel} XP to reach Level {level + 1}
         </span>
 
         <span className="font-semibold text-indigo-600 dark:text-indigo-400">
