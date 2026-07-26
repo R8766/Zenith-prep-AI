@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toast } from "react-toastify";
 import axios from "axios";
 
 import Layout from "../components/Layout";
@@ -14,6 +15,8 @@ import {
   FaTrash,
 } from "react-icons/fa";
 
+import { useUser } from "../context/UserContext";
+
 function Tasks() {
   const [tasks, setTasks] = useState([]);
 
@@ -22,16 +25,19 @@ function Tasks() {
   const [editModal, setEditModal] = useState(false);
 
   const [search, setSearch] = useState("");
+
   const [categoryFilter, setCategoryFilter] =
     useState("All Categories");
 
   const [difficultyFilter, setDifficultyFilter] =
     useState("All Difficulty");
 
+  const { addReward } = useUser();
+
   const API_URL = "https://zenith-prep.onrender.com";
 
   // =========================
-  // GET TASKS
+  // FETCH TASKS
   // =========================
 
   const fetchTasks = async () => {
@@ -62,7 +68,7 @@ function Tasks() {
   }, []);
 
   // =========================
-  // CREATE TASK
+  // ADD TASK
   // =========================
 
   const addTask = async (newTask) => {
@@ -87,11 +93,15 @@ function Tasks() {
 
       setShowModal(false);
 
+      toast.success("Task added successfully!");
+
     } catch (error) {
       console.log(
         "Error creating task:",
         error.response?.data || error.message
       );
+
+      toast.error("Failed to add task");
     }
   };
 
@@ -112,16 +122,19 @@ function Tasks() {
         }
       );
 
-      // Remove from frontend immediately
       setTasks((prev) =>
         prev.filter((task) => task._id !== id)
       );
+
+      toast.success("Task deleted successfully!");
 
     } catch (error) {
       console.log(
         "Error deleting task:",
         error.response?.data || error.message
       );
+
+      toast.error("Failed to delete task");
     }
   };
 
@@ -130,6 +143,8 @@ function Tasks() {
   // =========================
 
   const toggleComplete = async (id) => {
+    console.log("TOGGLE FUNCTION CALLED", id);
+
     try {
       const token = localStorage.getItem("token");
 
@@ -139,12 +154,15 @@ function Tasks() {
 
       if (!currentTask) return;
 
+      const isCompleting =
+        !currentTask.completed;
+
       const updatedTask = {
         title: currentTask.title,
         category: currentTask.category,
         difficulty: currentTask.difficulty,
         xp: currentTask.xp,
-        completed: !currentTask.completed,
+        completed: isCompleting,
       };
 
       const response = await axios.put(
@@ -166,16 +184,59 @@ function Tasks() {
         )
       );
 
+      // =========================
+      // SAVE RECENT ACTIVITY
+      // =========================
+
+      if (isCompleting) {
+        const existingActivities =
+          JSON.parse(
+            localStorage.getItem("activities")
+          ) || [];
+
+        const newActivity = {
+          title: currentTask.title,
+          category: currentTask.category,
+          xp: `+${currentTask.xp || 20} XP`,
+          completedAt:
+            new Date().toISOString(),
+        };
+
+        const updatedActivities = [
+          newActivity,
+          ...existingActivities,
+        ];
+
+        localStorage.setItem(
+          "activities",
+          JSON.stringify(updatedActivities)
+        );
+
+        console.log(
+          "Activity saved:",
+          newActivity
+        );
+
+        // Add XP and coins
+        addReward(currentTask.xp || 20);
+
+        toast.success(
+          `+${currentTask.xp || 20} XP earned! 🎉`
+        );
+      }
+
     } catch (error) {
       console.log(
         "Error updating task:",
         error.response?.data || error.message
       );
+
+      toast.error("Failed to update task");
     }
   };
 
   // =========================
-  // EDIT TASK
+  // UPDATE TASK
   // =========================
 
   const updateTask = async (updatedTask) => {
@@ -204,16 +265,24 @@ function Tasks() {
       setEditModal(false);
       setEditingTask(null);
 
+      toast.success(
+        "Task updated successfully!"
+      );
+
     } catch (error) {
       console.log(
         "Error updating task:",
         error.response?.data || error.message
       );
+
+      toast.error(
+        "Failed to update task"
+      );
     }
   };
 
   // =========================
-  // FILTERING
+  // CALCULATE PROGRESS
   // =========================
 
   const completed = tasks.filter(
@@ -225,26 +294,39 @@ function Tasks() {
       ? (completed / tasks.length) * 100
       : 0;
 
-  const filteredTasks = tasks.filter((task) => {
+  // =========================
+  // FILTER TASKS
+  // =========================
 
-    const matchesSearch = task.title
-      .toLowerCase()
-      .includes(search.toLowerCase());
+  const filteredTasks = tasks.filter(
+    (task) => {
 
-    const matchesCategory =
-      categoryFilter === "All Categories" ||
-      task.category === categoryFilter;
+      const matchesSearch =
+        task.title
+          .toLowerCase()
+          .includes(
+            search.toLowerCase()
+          );
 
-    const matchesDifficulty =
-      difficultyFilter === "All Difficulty" ||
-      task.difficulty === difficultyFilter;
+      const matchesCategory =
+        categoryFilter ===
+          "All Categories" ||
+        task.category ===
+          categoryFilter;
 
-    return (
-      matchesSearch &&
-      matchesCategory &&
-      matchesDifficulty
-    );
-  });
+      const matchesDifficulty =
+        difficultyFilter ===
+          "All Difficulty" ||
+        task.difficulty ===
+          difficultyFilter;
+
+      return (
+        matchesSearch &&
+        matchesCategory &&
+        matchesDifficulty
+      );
+    }
+  );
 
   return (
     <Layout>
@@ -266,7 +348,9 @@ function Tasks() {
         </div>
 
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() =>
+            setShowModal(true)
+          }
           className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl flex items-center gap-2 shadow"
         >
           <FaPlus />
@@ -334,7 +418,7 @@ function Tasks() {
       </div>
 
 
-      {/* SEARCH AND FILTERS */}
+      {/* SEARCH & FILTERS */}
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 mb-8">
 
@@ -351,24 +435,7 @@ function Tasks() {
               onChange={(e) =>
                 setSearch(e.target.value)
               }
-              className="
-                w-full
-                border
-                border-gray-200
-                dark:border-slate-700
-                rounded-xl
-                py-3
-                pl-12
-                pr-4
-                bg-white
-                dark:bg-slate-800
-                text-gray-900
-                dark:text-white
-                placeholder:text-gray-400
-                outline-none
-                focus:ring-2
-                focus:ring-indigo-500
-              "
+              className="w-full border border-gray-200 dark:border-slate-700 rounded-xl py-3 pl-12 pr-4 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-indigo-500"
             />
 
           </div>
@@ -377,57 +444,62 @@ function Tasks() {
           <select
             value={categoryFilter}
             onChange={(e) =>
-              setCategoryFilter(e.target.value)
+              setCategoryFilter(
+                e.target.value
+              )
             }
-            className="
-              border
-              border-gray-200
-              dark:border-slate-700
-              rounded-xl
-              px-4
-              py-3
-              bg-white
-              dark:bg-slate-800
-              text-gray-900
-              dark:text-white
-              focus:outline-none
-              focus:ring-2
-              focus:ring-indigo-500
-            "
+            className="border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option>All Categories</option>
-            <option>DSA</option>
-            <option>Development</option>
-            <option>CS Subjects</option>
-            <option>Aptitude</option>
+
+            <option>
+              All Categories
+            </option>
+
+            <option>
+              DSA
+            </option>
+
+            <option>
+              Development
+            </option>
+
+            <option>
+              CS Subjects
+            </option>
+
+            <option>
+              Aptitude
+            </option>
+
           </select>
 
 
           <select
             value={difficultyFilter}
             onChange={(e) =>
-              setDifficultyFilter(e.target.value)
+              setDifficultyFilter(
+                e.target.value
+              )
             }
-            className="
-              border
-              border-gray-200
-              dark:border-slate-700
-              rounded-xl
-              px-4
-              py-3
-              bg-white
-              dark:bg-slate-800
-              text-gray-900
-              dark:text-white
-              focus:outline-none
-              focus:ring-2
-              focus:ring-indigo-500
-            "
+            className="border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option>All Difficulty</option>
-            <option>Easy</option>
-            <option>Medium</option>
-            <option>Hard</option>
+
+            <option>
+              All Difficulty
+            </option>
+
+            <option>
+              Easy
+            </option>
+
+            <option>
+              Medium
+            </option>
+
+            <option>
+              Hard
+            </option>
+
           </select>
 
         </div>
@@ -439,111 +511,108 @@ function Tasks() {
 
       <div className="space-y-5">
 
-        {filteredTasks.map((task) => (
+        {filteredTasks.map(
+          (task) => (
 
-          <div
-            key={task._id}
-            className="
-              bg-white
-              dark:bg-slate-900
-              rounded-2xl
-              shadow
-              p-6
-              flex
-              flex-col
-              lg:flex-row
-              lg:justify-between
-              lg:items-center
-              gap-5
-            "
-          >
+            <div
+              key={task._id}
+              className="bg-white dark:bg-slate-900 rounded-2xl shadow p-6 flex flex-col lg:flex-row lg:justify-between lg:items-center gap-5"
+            >
 
-            {/* LEFT SIDE */}
+              {/* LEFT SIDE */}
 
-            <div className="flex items-start gap-4">
+              <div className="flex items-start gap-4">
 
-              <button
-                onClick={() =>
-                  toggleComplete(task._id)
-                }
-              >
-
-                {task.completed ? (
-
-                  <FaCheckCircle className="text-green-500 text-2xl mt-1 hover:scale-110 transition" />
-
-                ) : (
-
-                  <FaRegCircle className="text-gray-400 text-2xl mt-1 hover:text-green-500 transition" />
-
-                )}
-
-              </button>
-
-
-              <div>
-
-                <h2
-                  className={`text-xl font-semibold ${
-                    task.completed
-                      ? "line-through text-gray-400"
-                      : "text-gray-800 dark:text-white"
-                  }`}
+                <button
+                  onClick={() =>
+                    toggleComplete(
+                      task._id
+                    )
+                  }
                 >
-                  {task.title}
-                </h2>
+
+                  {task.completed ? (
+
+                    <FaCheckCircle className="text-green-500 text-2xl mt-1 hover:scale-110 transition" />
+
+                  ) : (
+
+                    <FaRegCircle className="text-gray-400 text-2xl mt-1 hover:text-green-500 transition" />
+
+                  )}
+
+                </button>
 
 
-                <div className="flex gap-2 mt-3 flex-wrap">
+                <div>
 
-                  <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 px-3 py-1 rounded-full text-sm">
-                    {task.category}
-                  </span>
+                  <h2
+                    className={`text-xl font-semibold ${
+                      task.completed
+                        ? "line-through text-gray-400"
+                        : "text-gray-800 dark:text-white"
+                    }`}
+                  >
+                    {task.title}
+                  </h2>
 
-                  <span className="bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 px-3 py-1 rounded-full text-sm">
-                    {task.difficulty}
-                  </span>
 
-                  <span className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 px-3 py-1 rounded-full text-sm">
-                    +{task.xp} XP
-                  </span>
+                  <div className="flex gap-2 mt-3 flex-wrap">
+
+                    <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 px-3 py-1 rounded-full text-sm">
+                      {task.category}
+                    </span>
+
+                    <span className="bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 px-3 py-1 rounded-full text-sm">
+                      {task.difficulty}
+                    </span>
+
+                    <span className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 px-3 py-1 rounded-full text-sm">
+                      +{task.xp} XP
+                    </span>
+
+                  </div>
 
                 </div>
 
               </div>
 
+
+              {/* RIGHT SIDE */}
+
+              <div className="flex gap-3">
+
+                <button
+                  onClick={() => {
+
+                    setEditingTask(task);
+
+                    setEditModal(true);
+
+                  }}
+                  className="bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 p-3 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/60 transition"
+                >
+                  <FaEdit />
+                </button>
+
+
+                <button
+                  onClick={() =>
+                    deleteTask(
+                      task._id
+                    )
+                  }
+                  className="bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-300 p-3 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/60 transition"
+                >
+                  <FaTrash />
+                </button>
+
+              </div>
+
             </div>
 
-
-            {/* RIGHT SIDE */}
-
-            <div className="flex gap-3">
-
-              <button
-                onClick={() => {
-                  setEditingTask(task);
-                  setEditModal(true);
-                }}
-                className="bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 p-3 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/60 transition"
-              >
-                <FaEdit />
-              </button>
-
-
-              <button
-                onClick={() =>
-                  deleteTask(task._id)
-                }
-                className="bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-300 p-3 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/60 transition"
-              >
-                <FaTrash />
-              </button>
-
-            </div>
-
-          </div>
-
-        ))}
+          )
+        )}
 
 
         {/* EMPTY STATE */}
@@ -607,13 +676,21 @@ function Tasks() {
 
       <AddTaskModal
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() =>
+          setShowModal(false)
+        }
         onAddTask={addTask}
       />
 
       <EditTaskModal
         isOpen={editModal}
-        onClose={() => setEditModal(false)}
+        onClose={() => {
+
+          setEditModal(false);
+
+          setEditingTask(null);
+
+        }}
         task={editingTask}
         onSave={updateTask}
       />
